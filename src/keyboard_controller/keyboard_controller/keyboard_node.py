@@ -1,5 +1,4 @@
-import rclpy
-from rclpy.node import Node
+import rospy
 from geometry_msgs.msg import Twist
 import sys
 import select
@@ -7,12 +6,12 @@ import tty
 import termios
 import time
 
-class KeyboardController(Node):
+class KeyboardController:
     def __init__(self):
-        super().__init__('keyboard_controller')
-        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.publisher1_ = self.create_publisher(Twist, '/cmd_vel1', 10)
-        self.timer = self.create_timer(0.05, self.timer_callback)
+        rospy.init_node('keyboard_controller')
+        self.publisher_ = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.publisher1_ = rospy.Publisher('/cmd_vel1', Twist, queue_size=10)
+        self.rate = rospy.Rate(20)  # 20Hz，相当于0.05秒
         
         # 速度参数
         self.max_linear_velocity = 0.5  # 最大线速度
@@ -274,21 +273,20 @@ class KeyboardController(Node):
         self.publisher1_.publish(msg)
         print('Published zero velocity to /cmd_vel1')
     
-    def destroy_node(self):
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.settings)
-        super().destroy_node()
+    def run(self):
+        while not rospy.is_shutdown():
+            self.timer_callback()
+            self.rate.sleep()
 
-def main(args=None):
-    rclpy.init(args=args)
+def main():
     keyboard_controller = KeyboardController()
     
     try:
-        rclpy.spin(keyboard_controller)
+        keyboard_controller.run()
     except KeyboardInterrupt:
         pass
     finally:
-        keyboard_controller.destroy_node()
-        rclpy.shutdown()
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, keyboard_controller.settings)
 
 if __name__ == '__main__':
     main()
